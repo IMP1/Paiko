@@ -238,7 +238,7 @@ function State:draw()
     end
     
     if self.stage == "Shift" then
-    
+        
     end
     
     if self.stage == "Capture" then
@@ -250,38 +250,56 @@ function State:draw()
         love.graphics.print( tostring(self.points[player]), Board.scoreX[player], Board.scoreY[player] )
     end
     
-    -- DEBUGGIN'
-    for j = 0, 14 do
-        for i = 0, 14 do
-            if Board.onBoard(i, j) then
-                local x, y = Board.screenCoords(i, j)
-                local a = tostring( Board.threatFriendly(i, j, self.playerTurn) )
-                local b = tostring( Board.threatDanger(i, j, self.playerTurn) )
-                love.graphics.print( a .. b, x, y)
-            end
-        end
-    end
-    
-  
-    
 end
 
 function State:capturePhase()
-    
+    for player = 1, 2 do
+        for _, piece in pairs(self.boardTiles[player]) do
+            local cover = Board.coverAt(piece.x, piece.y, player)
+            local threat = Board.threatDanger(piece.x, piece.y, player)
+            if threat - cover >= 2 then
+                self:captureTile(piece, player)
+            end
+        end
+    end
 end
 
 function State:updateScores()
+    for player = 1, 2 do
+        self.points[player] = self:getScore(player)
+    end
+end
 
+function State:getScore(player)
+    local enemy = 1 + (player % 2)
+    local score = 0
+    for _, piece in pairs(self.boardTiles[player]) do
+        if piece.name ~= "Lotus" and not Board.isHomeGround(piece.x, piece.y, player) then -- Outside the homeground
+            score = score + 1 -- 1 point for neutral ground
+            if Board.isHomeGround(piece.x, piece.y, enemy) then score = score + 1 end -- 2 points for enemy ground
+        end
+    end
+    return score
 end
 
 function State:placeTile(x, y, tile)
     table.remove(self.handTiles[self.playerTurn], self.selectedPieceIndex)
     local size = #self.boardTiles[self.playerTurn]
     self.boardTiles[self.playerTurn][size+1] = tile
+    tile.id = size+1
     tile.x = x
     tile.y = y
     tile.direction = (self.playerTurn - 1) * 2
     self:updateScores()
+end
+
+function State:captureTile(tile, player)
+    local size = #self.graveyardTiles[player]
+    self.graveyardTiles[player][size+1] = tile
+    table.remove(self.boardTiles[player], tile.id)
+    tile.x = -1
+    tile.y = -1
+    tile.id = nil
 end
 
 function State:shiftTile(x, y, tile)

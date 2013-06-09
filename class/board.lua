@@ -57,7 +57,7 @@ local Board = {
         900, 900,
     },
     scoreY = {
-        32, 576,
+        576, 32,
     },
 }
 
@@ -297,9 +297,11 @@ end
 -- Returns the cover level for player at the square
 function Board.coverAt(x, y, player)
     if player == nil then player = scene.playerTurn end
-    local enemy = (player%2)+1
+    if Board.isHomeGround(x, y, player) then
+        return 1 -- cover doesn't stack
+    end
     local cover = 0
-    for _, piece in pairs(scene.boardTiles[enemy]) do
+    for _, piece in pairs(scene.boardTiles[player]) do
         if piece:isDefending(x, y) then
             return 1 -- cover doesn't stack
         end
