@@ -37,9 +37,9 @@ function Piece:isAttacking(x, y)
     elseif self.direction == 1 then
         return y == self.y and x == self.x + 1
     elseif self.direction == 2 then
-        return x == self.x and y == self.y - 1
+        return x == self.x and y == self.y + 1
     elseif self.direction == 3 then
-        return y == self.y and x == self.x + 1
+        return y == self.y and x == self.x - 1
     end
 end
 
