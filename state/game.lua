@@ -54,7 +54,8 @@ function State:reset()
     self.tilesDrawn = 0
     self.selectedPiece = nil
     self.selectedPieceIndex = -1
-    self.actionLog = {}
+    self.shiftLength = -1
+    self.actionLog = { "Player 1:" }
 end
 
 function State:mouseReleased(mx, my, key)
@@ -69,9 +70,11 @@ function State:mouseReleased(mx, my, key)
                 if self.tilesToDraw == 7 then
                     self.tilesToDraw = 9
                     self.playerTurn = 1 + (self.playerTurn % 2)
+                    self.actionLog[#self.actionLog+1] = "\nPlayer " .. self.playerTurn .. ":"
                 elseif self.tilesToDraw == 9 then
                     self.tilesToDraw = 1
                     self.playerTurn = 1 + (self.playerTurn % 2)
+                    self.actionLog[#self.actionLog+1] = "\nPlayer " .. self.playerTurn .. ":"
                 elseif self.tilesToDraw == 1 then -- End of Game Start
                     self.tilesToDraw = 0
                     self.stage = "Begin"
@@ -81,15 +84,31 @@ function State:mouseReleased(mx, my, key)
             
         -- Turn Start
         elseif self.stage == "Begin" then
-            if Board.mouseOver(mx, my, "library", self.playerTurn) then
-                self:drawTile(mx, my)
-                self.stage = "Draw"
-            elseif Board.mouseOver(mx, my, "hand", self.playerTurn) then
+            if Board.mouseOver(mx, my, "library") then
+                local valid = self:drawTile(mx, my)
+                if valid then
+                    self.stage = "Draw"
+                end
+            elseif Board.mouseOver(mx, my, "hand") then
                 local i, j = Board.tileCoords(mx, my, "hand")
                 n = (j * Board.libraryW) + i + 1
                 self.selectedPiece = self.handTiles[self.playerTurn][n]
                 self.selectedPieceIndex = n
                 self.stage = "Place"
+            elseif Board.mouseOver(mx, my, "board") then
+                local i, j = Board.tileCoords(mx, my)
+                local tile = nil
+                for _, piece in pairs(self.boardTiles[self.playerTurn]) do
+                    if piece.x == i and piece.y == j then
+                        tile = piece
+                    end
+                end
+                if tile ~= nil and tile.name ~= "Lotus" and tile.name ~= "Air" then
+                    self.selectedPiece = tile
+                    self.selectedPieceIndex = tile.id
+                    self.stage = "Shift"
+                    self.shiftLength = 0
+                end
             end
             
         -- Drawing Tiles
@@ -109,10 +128,22 @@ function State:mouseReleased(mx, my, key)
             
         -- Placing Tiles from Hand
         elseif self.stage == "Place" then
-            local i, j = Board.tileCoords(mx, my)
-            if self.selectedPiece:canBePlacedAt(i, j, self.playerTurn) then
-                self:placeTile(i, j, self.handTiles[self.playerTurn][self.selectedPieceIndex])
-                self.stage = "Rotate"
+            if Board.mouseOver(mx, my, "board") then
+                local i, j = Board.tileCoords(mx, my)
+                if self.selectedPiece:canBePlacedAt(i, j, self.playerTurn) then
+                    self:placeTile(i, j, self.handTiles[self.playerTurn][self.selectedPieceIndex])
+                    if self.selectedPiece.name == "Sai" then
+                        self.stage = "Shift"
+                        self.shiftLength = 0
+                    else
+                        self.stage = "Rotate"
+                    end
+                end
+            elseif Board.mouseOver(mx, my, "hand") then -- Changing which piece to place
+                local i, j = Board.tileCoords(mx, my, "hand")
+                local n = (j * Board.handW) + i + 1
+                self.selectedPieceIndex = n
+                self.selectedPiece = self.handTiles[self.playerTurn][n]
             end
             
         elseif self.stage == "Rotate" then
@@ -128,7 +159,24 @@ function State:mouseReleased(mx, my, key)
             
         -- Shifting Tiles on Board
         elseif self.stage == "Shift" then
-            
+            local i, j = Board.tileCoords(mx, my)
+            if self.selectedPiece:canShiftTo(i, j) then
+                self:shiftTile(self.selectedPiece, i, j)
+            end
+            if Board.mouseOver(mx, my, "confirm", self.playerTurn) then
+                self.stage = "Rotate"
+                self.selectedTile = nil
+                self.selectedTileIndex = -1
+            end
+            if self.shiftLength >= 2 then
+                self.stage = "Rotate"
+                self.selectedTile = nil
+                self.selectedTileIndex = -1
+            elseif self.shiftLength >= 1 and self.selectedPiece.name == "Earth" or self.selectedPiece.name == "Water" then
+                self.stage = "Rotate"
+                self.selectedTile = nil
+                self.selectedTileIndex = -1
+            end
         end
     end
 end
@@ -141,6 +189,7 @@ function State:update(dt)
     -- End of Turn
     elseif self.stage == "End" then
         self.playerTurn = 1 + (self.playerTurn % 2)
+        self.actionLog[#self.actionLog+1] = "\nPlayer " .. self.playerTurn
         self.stage = "Begin"
     end
 end
@@ -214,7 +263,7 @@ function State:draw()
     end
     
     if self.stage == "Place" then
-        self:drawMessage("Place the tile on a highlighted square.")
+        self:drawMessage("Place on a highlighted square.")
         love.graphics.setColor(255, 255, 255, 32)
         for j = 0, 14 do
             for i = 0, 14 do
@@ -226,6 +275,8 @@ function State:draw()
                 end
             end
         end
+        local x, y = Board.screenCoords( (self.selectedPieceIndex-1) % Board.handW, math.floor((self.selectedPieceIndex-1) / (Board.handW*TileSize)), "hand" )
+        love.graphics.rectangle("fill", x, y, TileSize, TileSize)
         love.graphics.setColor(255, 255, 255)
     end
     
@@ -234,11 +285,45 @@ function State:draw()
         local j = Board.confirmY[self.playerTurn] + 8
         love.graphics.printf("End", i, j, Board.confirmW, "center")
         love.graphics.rectangle("line", Board.confirmX[self.playerTurn], Board.confirmY[self.playerTurn], Board.confirmW, Board.confirmH)
-        self:drawMessage("Click on the tile to rotate or [End] to finish.")
+        self:drawMessage("Click to rotate, or [End] to finish.")
+        love.graphics.setColor(255, 255, 255, 32)
+        local x, y = Board.screenCoords(self.selectedPiece.x, self.selectedPiece.y)
+        love.graphics.rectangle("fill", x, y, TileSize, TileSize)
+        love.graphics.setColor(255, 255, 255)
     end
     
     if self.stage == "Shift" then
-        
+        local i = Board.confirmX[self.playerTurn]
+        local j = Board.confirmY[self.playerTurn] + 8
+        love.graphics.printf("End", i, j, Board.confirmW, "center")
+        love.graphics.rectangle("line", Board.confirmX[self.playerTurn], Board.confirmY[self.playerTurn], Board.confirmW, Board.confirmH)
+        self:drawMessage("Shift to a highlighted square, or [End] to finish.")
+        love.graphics.setColor(255, 255, 255, 32)
+        for j = 0, 14 do
+            for i = 0, 14 do
+                if Board.onBoard(i, j) then
+                if self.selectedPiece:canShiftTo(i, j) then
+                    local x, y = Board.screenCoords(i, j)
+                    love.graphics.rectangle("fill", x, y, TileSize, TileSize)
+                end
+                end
+            end
+        end
+        local x, y = Board.screenCoords(self.selectedPiece.x, self.selectedPiece.y)
+        love.graphics.rectangle("fill", x, y, TileSize, TileSize)
+        love.graphics.setColor(255, 255, 255)
+    end
+    
+    if self.stage == "Shifted" then
+        local i = Board.confirmX[self.playerTurn]
+        local j = Board.confirmY[self.playerTurn] + 8
+        love.graphics.printf("End", i, j, Board.confirmW, "center")
+        love.graphics.rectangle("line", Board.confirmX[self.playerTurn], Board.confirmY[self.playerTurn], Board.confirmW, Board.confirmH)
+        self:drawMessage("Click to rotate, or [End] to finish.")
+        love.graphics.setColor(255, 255, 255, 32)
+        local x, y = Board.screenCoords(self.selectedPiece.x, self.selectedPiece.y)
+        love.graphics.rectangle("fill", x, y, TileSize, TileSize)
+        love.graphics.setColor(255, 255, 255)
     end
     
     if self.stage == "Capture" then
@@ -290,6 +375,7 @@ function State:placeTile(x, y, tile)
     tile.x = x
     tile.y = y
     tile.direction = (self.playerTurn - 1) * 2
+    self.actionLog[#self.actionLog+1] = "PLACE " .. tile.name
     self:updateScores()
 end
 
@@ -300,21 +386,28 @@ function State:captureTile(tile, player)
     tile.x = -1
     tile.y = -1
     tile.id = nil
+    self:updateScores()
 end
 
-function State:shiftTile(x, y, tile)
+function State:shiftTile(tile, x, y)
+    self.actionLog[#self.actionLog+1] = "SHIFT " .. tile.name .. " [" .. tile.x .. ", " .. tile.y .. "] -> [" .. x .. ", " .. y .. "]"
+    tile.x = x
+    tile.y = y
+    self.shiftLength = self.shiftLength + 1
     self:updateScores()
 end
 
 function State:drawTile(mx, my)
     local i, j = Board.tileCoords(mx, my, "library")
-    n = (j * Board.libraryW) + i + 1
+    local n = (j * Board.libraryW) + i + 1
     local tile = self.libraryTiles[self.playerTurn][n]
-    if tile == nil then return end -- We clicked on empty space
+    if tile == nil then return false end -- We clicked on empty space
     local size = #self.handTiles[self.playerTurn]
     self.handTiles[self.playerTurn][size+1] = tile
     table.remove(self.libraryTiles[self.playerTurn], n)
     self.tilesDrawn = self.tilesDrawn + 1
+    self.actionLog[#self.actionLog+1] = "DRAW " .. tile.name
+    return true
 end
 
 function State:drawMessage(msg)

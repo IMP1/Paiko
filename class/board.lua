@@ -107,9 +107,6 @@ function Board.screenCoords(i, j, area, player)
     if area == "board" or area == nil then
         x = x + Board.x
         y = y + Board.y
-        -- 2) PLACING TILES - HIGHLIGHTING AVAILABLE SQUARES
-        -- 3) ????
-        -- 4) PROFIT!
     elseif area == "library" then
         x = x + Board.libraryX[player]
         y = y + Board.libraryY[player]

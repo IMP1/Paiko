@@ -72,34 +72,18 @@ end
 -----------------
 -- canShiftTo
 ---------------
--- x : x (tile) co-ordinate
--- y : y (tile) co-ordinate
+--      x : x (tile) co-ordinate
+--      y : y (tile) co-ordinate
+-- player : player owning the tile
 ---------------
 -- Returns if this can shift to the square (x, y)
-function Piece:canShiftTo(x, y)
+function Piece:canShiftTo(x, y, player)
     if x == -1 or y == -1 then return false end -- Cannot shift from off the board
     if not Board.validTile(x, y) then return false end -- Cannot end up off board or on black square
     if not Board.emptyTile(x, y) then return false end -- Cannot end up at taken square
-    if math.abs(x - self.x) + math.abs(y - self.y) ~= 2 then return false end -- Cannot move more/less than 2 squares
-    
-    if x == self.x then -- If we're trying to go up/down
-        if y < self.y then
-            if not Board.passableTile(x, y+1) or not Board.passableTile(x, y) then return false end
-        else
-            if not Board.passableTile(x, y-1) or not Board.passableTile(x, y) then return false end
-        end
-        return true
-    end
-    
-    if y == self.y then -- If we're trying to go left/right
-        if x < self.x then
-            if not Board.passableTile(x+1, y) or not Board.passableTile(x, y) then return false end
-        else
-            if not Board.passableTile(x-1, y) or not Board.passableTile(x, y) then return false end
-        end
-        return true
-    end
-    
+    if Board.threatDanger(x, y, player) - Board.coverAt(x, y, player) >= 2 then return false end
+    if math.abs(x - self.x) + math.abs(y - self.y) > 1 then return false end
+    return true
 end
 
 ---------

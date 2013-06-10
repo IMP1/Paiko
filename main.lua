@@ -109,6 +109,12 @@ function love.focus(gained)
     end
 end
 
+function love.quit()
+    for i, line in pairs(scene.actionLog) do
+        print(line)
+    end
+end
+
 -------------
 -- contains
 -----------

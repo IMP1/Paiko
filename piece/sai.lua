@@ -35,9 +35,9 @@ function Piece:isAttacking(x, y)
     if self.direction == 0 then
         return x == self.x and y == self.y - 1
     elseif self.direction == 1 then
-        return y == self.y and x == self.x - 1
+        return y == self.y and x == self.x + 1
     elseif self.direction == 2 then
-        return x == self.x and y == self.y + 1
+        return x == self.x and y == self.y - 1
     elseif self.direction == 3 then
         return y == self.y and x == self.x + 1
     end
@@ -78,14 +78,17 @@ end
 -----------------
 -- canShiftTo
 ---------------
--- x : x (tile) co-ordinate
--- y : y (tile) co-ordinate
+--      x : x (tile) co-ordinate
+--      y : y (tile) co-ordinate
+-- player : player owning the tile
 ---------------
 -- Returns if this can shift to the square (x, y)
-function Piece:canShiftTo(x, y)
+function Piece:canShiftTo(x, y, player)
     if x == -1 or y == -1 then return false end -- Cannot shift from off the board
     if not Board.validTile(x, y) then return false end -- Cannot end up off board or on black square
     if not Board.emptyTile(x, y) then return false end -- Cannot end up at taken square
+    if Board.threatDanger(x, y, player) - Board.coverAt(x, y, player) >= 2 then return false end
+    if math.abs(x - self.x) + math.abs(y - self.y) > 1 then return false end
     return true
 end
 
