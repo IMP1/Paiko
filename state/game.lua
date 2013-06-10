@@ -289,6 +289,21 @@ function State:draw()
         love.graphics.setColor(255, 255, 255, 32)
         local x, y = Board.screenCoords(self.selectedPiece.x, self.selectedPiece.y)
         love.graphics.rectangle("fill", x, y, TileSize, TileSize)
+        for j = 0, 14 do
+            for i = 0, 14 do
+                if Board.onBoard(i, j) then
+                    local x, y = Board.screenCoords(i, j)
+                    if self.selectedPiece:isAttacking(i, j) then
+                        love.graphics.setColor(255, 0, 0, 32)
+                        love.graphics.rectangle("fill", x, y, TileSize, TileSize)
+                    end
+                    if self.selectedPiece:isDefending(i, j) then
+                        love.graphics.setColor(0, 0, 255, 32)
+                        love.graphics.rectangle("fill", x, y, TileSize, TileSize)
+                    end
+                end
+            end
+        end
         love.graphics.setColor(255, 255, 255)
     end
     
