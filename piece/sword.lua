@@ -32,7 +32,7 @@ end
 function Piece:isAttacking(x, y)
     if self.x == -1 or self.y == -1 then return false end -- Not on the board
     if self.x == x and self.y == y then return false end -- We don't attack our own square
-    return math.sqrt( math.abs(self.x-x) + math.abs(self.y-y) ) < 1.5
+    return math.sqrt( math.abs(self.x-x)^2 + math.abs(self.y-y)^2 ) < 1.5
 end
 
 ----------------
